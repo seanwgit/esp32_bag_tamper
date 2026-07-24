@@ -4,32 +4,202 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 
-// SETTINGS
 
-// Enable sensors
+
+// ================= SETTINGS =================
+
+// Enables or disables the light sensor.
 bool USE_LDR = true;
+// Enables or disables the acceleromter sensor.
 bool USE_ACCEL = true;
 
-// false = either sensor triggers alarm
-// true = both sensors must trigger alarm
+// Determines how the alarm is triggered.
+// false = either sensor triggers alarm.
+// true = both sensors must trigger alarm.
 bool REQUIRE_BOTH = false;
 
-// LDR threshold
+// Light level required before the LDR detects a change.
 int LDR_THRESHOLD = 2800;
 
-// Movement threshold (m/s²)
+// Minimum change in acceleration required to detect movement. (m/s²)
 float MOVEMENT_THRESHOLD = 9;
 
-// Pins
+// Pins for each component
 #define LDR_PIN A0
 #define BUZZER_PIN 13
 
-//CODE
+// ============================================
 
+// Create an ADXL345 sensor object with a unique sensor ID.
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
-// Armed position
+// Variables used to store the acceleration values when the system is armed.
+// Future movement is compared against these values.
 float armX, armY, armZ;
+
+//===================start of paste====================================
+/**
+This code is pasted directly from previous example code we have had in class
+where furthur ajustments will be made.
+*/
+
+//------------- WiFi setup --------------
+//the Wifi status
+//int status = WL_IDLE_STATUS;
+
+//Your network name and password are hidden in the secrets.h file
+const char SSID[] = SECRET_SSID;
+const char PASSWORD[] = SECRET_PASS;
+
+//------------- WebServer setup --------------
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+// Create a WebSocket object
+AsyncWebSocket ws("/ws");
+
+
+/**
+LittleFS setup - wants to be first method for some reason?
+*/
+void initLittleFS() {
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS failed to setup");
+  } else {
+    Serial.println("LittleFS should be going now");
+  }
+}
+
+/**
+LittleFS reading a file 
+*/
+String readFile(fs::FS& fs, const char* path) {
+  Serial.print("Reading file: ");
+  Serial.println(path);
+  File file = fs.open(path);
+  if (!file || file.isDirectory()) {
+    Serial.println("readFile failed to open file");
+    return String();
+  }
+  String fileContent;
+  while (file.available()) {
+    fileContent = file.readStringUntil('\n');
+    break;
+  }
+  return fileContent;
+}
+
+/**
+LittleFS writing a file
+*/
+void writeFile(fs::FS& fs, const char* path, const char* message) {
+  Serial.print("Writing file: ");
+  Serial.println(path);
+  File file = fs.open(path, FILE_WRITE);
+  if (!file) {
+    Serial.println("writeFile failed to write to file");
+    return;
+  }
+  if (file.print(message)) {
+    Serial.println("- writeFile success");
+  } else {
+    Serial.println("- writeFile failed");
+  }
+}
+
+/**
+set up a JSON array and hold the states of all values we care about
+pins and their current states variables and their current values
+*/
+String getOutputStates() {
+  JSONVar myArray;
+
+  myArray["values"][0]["pinNum"] = String(2);
+  myArray["values"][0]["state"] = String(digitalRead(2));
+
+  myArray["values"][1]["pinNum"] = String(13);
+  myArray["values"][1]["state"] = String(digitalRead(13));
+
+  myArray["values"][2]["r"] = String(red);
+  myArray["values"][2]["g"] = String(green);
+  myArray["values"][2]["b"] = String(blue);
+
+  String jsonString = JSON.stringify(myArray);
+  return jsonString;
+}
+
+/**
+Sends a message to all clients connected to ip address with a JSON message
+*/
+void notifyClients(String state) {
+  ws.textAll(state);
+}
+
+/**
+Handles messages from clients in the if statements below
+*/
+void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
+  AwsFrameInfo* info = (AwsFrameInfo*)arg;
+  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+    data[len] = 0;
+    //if message is states send the state of all gpio pins
+    if (strcmp((char*)data, "getStates") == 0) {
+      notifyClients(getOutputStates());
+    } else {
+      //(char*)data should be in this format "rgb(255,87,51)" when it isn't 'getStates'
+      std::string rgb = (char*)data;
+      byte firstComma = rgb.find(',');
+      byte secondComma = rgb.find(',', firstComma + 1);
+      byte lastBracket = rgb.find(')');
+
+      red = stoi(rgb.substr(4, firstComma));
+      green = stoi(rgb.substr(firstComma + 1, secondComma - firstComma - 1));
+      blue = stoi(rgb.substr(secondComma + 1, lastBracket));
+    }
+    //Just to alternate the led on and off to show we can digitalRead and digitalWrite here
+    //digitalWrite(LEDPIN, !digitalRead(LEDPIN)); //AM I AN ISSUE NEED TO TEST--------------------------------------
+  }
+}
+
+/**
+Event listener handles different asyncronous steps from the web socket
+*/
+void onEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
+  switch (type) {
+    case WS_EVT_CONNECT:
+      //Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      Serial.print("WebSocket client ");
+      Serial.print(client->id());
+      Serial.print(" connected from ");
+      Serial.println(client->remoteIP().toString().c_str());
+      break;
+    case WS_EVT_DISCONNECT:
+      //Serial.printf("WebSocket client #%u disconnected\n", client->id());
+      Serial.print("WebSocket client ");
+      Serial.print(client->id());
+      Serial.println(" disconnected\n");
+      break;
+    case WS_EVT_DATA:
+      handleWebSocketMessage(arg, data, len);
+      break;
+    case WS_EVT_PONG:
+    case WS_EVT_ERROR:
+      break;
+  }
+}
+
+
+/**
+WebSocket setup
+What to do when an event happens on the ws socket and adding a handler to the server
+*/
+void initWebSocket() {
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
+  Serial.println("websocket should be running now");
+}
+
+//==================End of Paste=============================
+
 
 void setup() {
 
