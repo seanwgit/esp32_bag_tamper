@@ -40,7 +40,7 @@ float armX, armY, armZ;
 //===================start of paste====================================
 /**
 This code is pasted directly from previous example code we have had in class
-where furthur ajustments will be made.
+where further ajustments will be made.
 */
 
 //------------- WiFi setup --------------
@@ -202,26 +202,32 @@ void initWebSocket() {
 
 
 void setup() {
-
+  // Start serial communication for debugging.
   Serial.begin(115200);
+  // Wait for the serial monitor to connect.
   delay(2000);
 
+  // Configure the LDR as an input and the buzzer as an output.
   pinMode(LDR_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
 
+  // Start I2C communication with connected sensors.
   Wire.begin();
 
+  // Check that the ADXL345 is connected before continuing.
   if (!accel.begin()) {
     Serial.println("ADXL345 NOT FOUND");
     while (1);
   }
-
+  
+  // Stop the program if the sensor cannot be found.
   accel.setRange(ADXL345_RANGE_2_G);
 
-  // Store starting position
+  // Set the accelerometer to its most sensitive measurement range.
   sensors_event_t event;
   accel.getEvent(&event);
 
+  // Store the starting orientation of the bag.
   armX = event.acceleration.x;
   armY = event.acceleration.y;
   armZ = event.acceleration.z;
@@ -231,13 +237,17 @@ void setup() {
 
 void loop() {
 
+  // Keep track of whether each sensor has detected tampering.
   bool ldrTriggered = false;
   bool accelTriggered = false;
 
   // LDR 
 
+  // Read the current light level from the LDR.
   int ldr = analogRead(LDR_PIN);
 
+  // If the LDR is enabled and the threshold is exceeded,
+  // mark the sensor as triggered.
   if (USE_LDR && ldr > LDR_THRESHOLD) {
     ldrTriggered = true;
 
@@ -246,16 +256,20 @@ void loop() {
   }
 
   // ADXL345 
-
+  // Read the latest acceleration values.
   sensors_event_t event;
   accel.getEvent(&event);
 
+  // Calculate the difference between the current position
+  // and the original armed position on each axis.
   float dx = abs(event.acceleration.x - armX);
   float dy = abs(event.acceleration.y - armY);
   float dz = abs(event.acceleration.z - armZ);
 
+  // Use the largest change across all three axes as the movement value.
   float movement = max(dx, max(dy, dz));
 
+  // If movement exceeds the threshold, trigger the accelerometer.
   if (USE_ACCEL && movement > MOVEMENT_THRESHOLD) {
     accelTriggered = true;
 
@@ -265,8 +279,10 @@ void loop() {
 
   // ALARM LOGIC 
 
+  // Determine whether the alarm should sound.
   bool alarm = false;
 
+  // If REQUIRE_BOTH is true, every enabled sensor must trigger.
   if (REQUIRE_BOTH) {
 
     alarm =
@@ -274,27 +290,34 @@ void loop() {
       (!USE_ACCEL || accelTriggered);
 
   } else {
-
+    
+    // Else, any enabled sensor can trigger the alarm.
     alarm =
       (USE_LDR && ldrTriggered) ||
       (USE_ACCEL && accelTriggered);
   }
 
   // BUZZER 
-
+  // Sound the buzzer if tampering has been detected.
   if (alarm) {
 
     Serial.println("!!! BAG TAMPER DETECTED !!!");
 
+    // Generate a 2000 Hz tone.
     tone(BUZZER_PIN, 2000);
+
+    // Keep the tone on briefly.   
     delay(250);
+
+    // Stop the buzzer.
     noTone(BUZZER_PIN);
 
+    // Pause before checking the sensors again.
     delay(250);
   }
 
   // DEBUG 
-
+  // Output sensor readings to the Serial Monitor for testing and debugging.
   Serial.print("LDR=");
   Serial.print(ldr);
 
@@ -310,5 +333,6 @@ void loop() {
   Serial.print(" Z=");
   Serial.println(event.acceleration.z);
 
+  // Small delay to reduce the sensor reading rate.  
   delay(100);
 }
