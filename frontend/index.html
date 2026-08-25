@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- meta tags are important to have not just for resizing the screen -->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Testing your connection</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <h1 class="title">Testing your connection</h1>
+            <p>
+                This webpage tests your connection to your ESP and that ESP's connection (to your WiFi) and back to this
+                webpage. 
+            </p>
+        </header>
+        <div class="flex-container">
+            <div class="flex-item">
+                <p>You <span id="d2Button">aren't</span> pressing the D2 button</p>
+            </div>
+            <div class="flex-item">
+               <!-- form was removed as not needed for web socket connections that are always updating the states -->
+                    <label for="testColor1">Red (between 0 and 255):</label>
+                    <input type="range" oninput="updatetestColor1(this)" id="testColor1" name="red" min="0" max="255" /><br />
+                    <p>Red is: <output id="redVal">128</output></p>
+                
+                    <label for="testColor2">Green (between 0 and 255):</label>
+                    <input type="range" oninput="updatetestColor2(this)" id="testColor2" name="green" min="0" max="255" /><br />
+                    <p>Green is: <output id="greenVal">128</output></p>
+                
+                    <label for="testColor3">Blue (between 0 and 255):</label>
+                    <input type="range" oninput="updatetestColor3(this)" id="testColor3" name="blue" min="0" max="255" /><br />
+                    <p>Blue is: <output id="blueVal">128</output></p> 
+            </div>
+        </div>
+        <!-- script link down here so that oninput tag above works correctly -->
+        <script src="script.js"></script>
+    </body>
+</html>
