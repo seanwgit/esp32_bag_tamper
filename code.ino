@@ -37,6 +37,7 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 // Future movement is compared against these values.
 float armX, armY, armZ;
 
+//HAN COMMENT from the main.cpp file i assume?
 //===================start of paste====================================
 /**
 This code is pasted directly from previous example code we have had in class
@@ -113,12 +114,15 @@ pins and their current states variables and their current values
 String getOutputStates() {
   JSONVar myArray;
 
+  //HAN COMMENT what does this chunk of code do?
   myArray["values"][0]["pinNum"] = String(2);
   myArray["values"][0]["state"] = String(digitalRead(2));
 
+   //HAN COMMENT what does this chunk of code do?
   myArray["values"][1]["pinNum"] = String(13);
   myArray["values"][1]["state"] = String(digitalRead(13));
 
+   //HAN COMMENT what does this chunk of code do? pretty sure you don't need the rgb led from the example
   myArray["values"][2]["r"] = String(red);
   myArray["values"][2]["g"] = String(green);
   myArray["values"][2]["b"] = String(blue);
@@ -145,6 +149,8 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
     if (strcmp((char*)data, "getStates") == 0) {
       notifyClients(getOutputStates());
     } else {
+       //HAN COMMENT I think this rgb stuff can be removed or adjusted to your sensors/sliders if you need it still?
+      
       //(char*)data should be in this format "rgb(255,87,51)" when it isn't 'getStates'
       std::string rgb = (char*)data;
       byte firstComma = rgb.find(',');
@@ -200,7 +206,7 @@ void initWebSocket() {
 
 //==================End of Paste=============================
 
-
+ //HAN COMMENT what does the setup method do just a 'sets up x, y, z' comment
 void setup() {
   // Start serial communication for debugging.
   Serial.begin(115200);
@@ -235,6 +241,7 @@ void setup() {
   Serial.println("SYSTEM ARMED");
 }
 
+ //HAN COMMENT what does the loop do - same format to the setup comment above
 void loop() {
 
   // Keep track of whether each sensor has detected tampering.
