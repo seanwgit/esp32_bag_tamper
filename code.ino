@@ -1,67 +1,48 @@
-#include <Adafruit_ADXL345_U.h>
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
+#include <LittleFS.h>
+#include <Arduino_JSON.h>
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 
-
-
-// ================= SETTINGS =================
-
-// Enables or disables the light sensor.
+// Sensor settings
 bool USE_LDR = true;
-// Enables or disables the acceleromter sensor.
 bool USE_ACCEL = true;
 
-// Determines how the alarm is triggered.
-// false = either sensor triggers alarm.
-// true = both sensors must trigger alarm.
+// false = either sensor, true = both sensors
 bool REQUIRE_BOTH = false;
 
-// Light level required before the LDR detects a change.
+// Light and movement thresholds
 int LDR_THRESHOLD = 2800;
-
-// Minimum change in acceleration required to detect movement. (m/s²)
 float MOVEMENT_THRESHOLD = 9;
 
-// Pins for each component
+// Pins for the LDR and buzzer
 #define LDR_PIN A0
 #define BUZZER_PIN 13
 
-// ============================================
-
-// Create an ADXL345 sensor object with a unique sensor ID.
+// Set up the accelerometer
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
-// Variables used to store the acceleration values when the system is armed.
-// Future movement is compared against these values.
+// Starting acceleration values used to detect movement
 float armX, armY, armZ;
 
-//HAN COMMENT from the main.cpp file i assume?
-//===================start of paste====================================
-/**
-This code is pasted directly from previous example code we have had in class
-where further ajustments will be made.
-*/
 
-//------------- WiFi setup --------------
-//the Wifi status
-//int status = WL_IDLE_STATUS;
+// WebSocket code adapted from the class example
 
-//Your network name and password are hidden in the secrets.h file
-const char SSID[] = SECRET_SSID;
-const char PASSWORD[] = SECRET_PASS;
+// WiFi network details
+const char SSID[] = "Winwifi";
+const char PASSWORD[] = "giNk0b!lBO4";
 
-//------------- WebServer setup --------------
-// Create AsyncWebServer object on port 80
+// Create the web server on port 80
 AsyncWebServer server(80);
-// Create a WebSocket object
+
+// Create the WebSocket
 AsyncWebSocket ws("/ws");
 
-
-/**
-LittleFS setup - wants to be first method for some reason?
-*/
+// Start LittleFS so the ESP32 can read the webpage files
 void initLittleFS() {
   if (!LittleFS.begin(true)) {
     Serial.println("LittleFS failed to setup");
@@ -70,170 +51,173 @@ void initLittleFS() {
   }
 }
 
-/**
-LittleFS reading a file 
-*/
-String readFile(fs::FS& fs, const char* path) {
+// Read a file from LittleFS
+void readFile(fs::FS& fs, const char* path) {
   Serial.print("Reading file: ");
   Serial.println(path);
+
   File file = fs.open(path);
+
   if (!file || file.isDirectory()) {
     Serial.println("readFile failed to open file");
-    return String();
+    return;
   }
-  String fileContent;
+
   while (file.available()) {
-    fileContent = file.readStringUntil('\n');
-    break;
+    Serial.write(file.read());
   }
-  return fileContent;
+
+  file.close();
 }
 
-/**
-LittleFS writing a file
-*/
+// Write text to a file in LittleFS
 void writeFile(fs::FS& fs, const char* path, const char* message) {
   Serial.print("Writing file: ");
   Serial.println(path);
+
   File file = fs.open(path, FILE_WRITE);
+
   if (!file) {
     Serial.println("writeFile failed to write to file");
     return;
   }
+
   if (file.print(message)) {
     Serial.println("- writeFile success");
   } else {
     Serial.println("- writeFile failed");
   }
+
+  file.close();
 }
 
-/**
-set up a JSON array and hold the states of all values we care about
-pins and their current states variables and their current values
-*/
+// Make a JSON message to test communication with the webpage
 String getOutputStates() {
   JSONVar myArray;
 
-  //HAN COMMENT what does this chunk of code do?
-  myArray["values"][0]["pinNum"] = String(2);
-  myArray["values"][0]["state"] = String(digitalRead(2));
-
-   //HAN COMMENT what does this chunk of code do?
-  myArray["values"][1]["pinNum"] = String(13);
-  myArray["values"][1]["state"] = String(digitalRead(13));
-
-   //HAN COMMENT what does this chunk of code do? pretty sure you don't need the rgb led from the example
-  myArray["values"][2]["r"] = String(red);
-  myArray["values"][2]["g"] = String(green);
-  myArray["values"][2]["b"] = String(blue);
+  // This is just a test value for now
+  myArray["values"][0]["status"] = "connected";
 
   String jsonString = JSON.stringify(myArray);
   return jsonString;
 }
 
-/**
-Sends a message to all clients connected to ip address with a JSON message
-*/
+// Send a message to all connected webpages
 void notifyClients(String state) {
   ws.textAll(state);
 }
 
-/**
-Handles messages from clients in the if statements below
-*/
+// Read messages sent from the webpage
 void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
   AwsFrameInfo* info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    data[len] = 0;
-    //if message is states send the state of all gpio pins
-    if (strcmp((char*)data, "getStates") == 0) {
-      notifyClients(getOutputStates());
-    } else {
-       //HAN COMMENT I think this rgb stuff can be removed or adjusted to your sensors/sliders if you need it still?
-      
-      //(char*)data should be in this format "rgb(255,87,51)" when it isn't 'getStates'
-      std::string rgb = (char*)data;
-      byte firstComma = rgb.find(',');
-      byte secondComma = rgb.find(',', firstComma + 1);
-      byte lastBracket = rgb.find(')');
 
-      red = stoi(rgb.substr(4, firstComma));
-      green = stoi(rgb.substr(firstComma + 1, secondComma - firstComma - 1));
-      blue = stoi(rgb.substr(secondComma + 1, lastBracket));
+  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+
+    // Read the message received from the webpage
+    String message = "";
+
+    for (size_t i = 0; i < len; i++) {
+      message += (char)data[i];
     }
-    //Just to alternate the led on and off to show we can digitalRead and digitalWrite here
-    //digitalWrite(LEDPIN, !digitalRead(LEDPIN)); //AM I AN ISSUE NEED TO TEST--------------------------------------
+
+    Serial.println(message);
+
+    // If the webpage requests the states, send a test message
+    if (message == "getStates") {
+      notifyClients(getOutputStates());
+    }
   }
 }
 
-/**
-Event listener handles different asyncronous steps from the web socket
-*/
+// Handles WebSocket connections, disconnections and messages
 void onEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
   switch (type) {
     case WS_EVT_CONNECT:
-      //Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
       Serial.print("WebSocket client ");
       Serial.print(client->id());
       Serial.print(" connected from ");
       Serial.println(client->remoteIP().toString().c_str());
       break;
+
     case WS_EVT_DISCONNECT:
-      //Serial.printf("WebSocket client #%u disconnected\n", client->id());
       Serial.print("WebSocket client ");
       Serial.print(client->id());
-      Serial.println(" disconnected\n");
+      Serial.println(" disconnected");
       break;
+
     case WS_EVT_DATA:
       handleWebSocketMessage(arg, data, len);
       break;
+
     case WS_EVT_PONG:
     case WS_EVT_ERROR:
       break;
   }
 }
 
-
-/**
-WebSocket setup
-What to do when an event happens on the ws socket and adding a handler to the server
-*/
+// Start the WebSocket
 void initWebSocket() {
   ws.onEvent(onEvent);
   server.addHandler(&ws);
-  Serial.println("websocket should be running now");
+
+  Serial.println("WebSocket should be running now");
 }
 
-//==================End of Paste=============================
 
- //HAN COMMENT what does the setup method do just a 'sets up x, y, z' comment
 void setup() {
-  // Start serial communication for debugging.
+  // Start the Serial Monitor
   Serial.begin(115200);
-  // Wait for the serial monitor to connect.
   delay(2000);
 
-  // Configure the LDR as an input and the buzzer as an output.
+  // Connect the ESP32 to WiFi
+  WiFi.begin(SSID, PASSWORD);
+
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi connected");
+
+  // Print the IP address used to open the webpage
+  Serial.print("ESP32 IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // Start LittleFS and WebSocket
+  initLittleFS();
+  initWebSocket();
+
+  // Load the webpage files stored on the ESP32
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+  // Start the web server
+  server.begin();
+
+  Serial.println("Web server started");
+
+  // Set up the LDR and buzzer
   pinMode(LDR_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
 
-  // Start I2C communication with connected sensors.
+  // Start communication with the accelerometer
   Wire.begin();
 
-  // Check that the ADXL345 is connected before continuing.
+  // Check whether the ADXL345 is connected
   if (!accel.begin()) {
     Serial.println("ADXL345 NOT FOUND");
     while (1);
   }
-  
-  // Stop the program if the sensor cannot be found.
+
+  // Set the accelerometer range
   accel.setRange(ADXL345_RANGE_2_G);
 
-  // Set the accelerometer to its most sensitive measurement range.
   sensors_event_t event;
   accel.getEvent(&event);
 
-  // Store the starting orientation of the bag.
+  // Save the starting position of the bag
   armX = event.acceleration.x;
   armY = event.acceleration.y;
   armZ = event.acceleration.z;
@@ -241,20 +225,20 @@ void setup() {
   Serial.println("SYSTEM ARMED");
 }
 
- //HAN COMMENT what does the loop do - same format to the setup comment above
+
 void loop() {
 
-  // Keep track of whether each sensor has detected tampering.
+  // Remove disconnected WebSocket clients
+  ws.cleanupClients();
+
+  // Track whether each sensor has detected tampering
   bool ldrTriggered = false;
   bool accelTriggered = false;
 
-  // LDR 
-
-  // Read the current light level from the LDR.
+  // Read the light sensor
   int ldr = analogRead(LDR_PIN);
 
-  // If the LDR is enabled and the threshold is exceeded,
-  // mark the sensor as triggered.
+  // Check whether the light level has passed the threshold
   if (USE_LDR && ldr > LDR_THRESHOLD) {
     ldrTriggered = true;
 
@@ -262,21 +246,19 @@ void loop() {
     Serial.println(ldr);
   }
 
-  // ADXL345 
-  // Read the latest acceleration values.
+  // Read the accelerometer
   sensors_event_t event;
   accel.getEvent(&event);
 
-  // Calculate the difference between the current position
-  // and the original armed position on each axis.
+  // Calculate the change from the starting position
   float dx = abs(event.acceleration.x - armX);
   float dy = abs(event.acceleration.y - armY);
   float dz = abs(event.acceleration.z - armZ);
 
-  // Use the largest change across all three axes as the movement value.
+  // Use the largest change to measure movement
   float movement = max(dx, max(dy, dz));
 
-  // If movement exceeds the threshold, trigger the accelerometer.
+  // Check whether enough movement has happened
   if (USE_ACCEL && movement > MOVEMENT_THRESHOLD) {
     accelTriggered = true;
 
@@ -284,47 +266,37 @@ void loop() {
     Serial.println(movement);
   }
 
-  // ALARM LOGIC 
-
-  // Determine whether the alarm should sound.
+  // Decide whether the alarm should go off
   bool alarm = false;
 
-  // If REQUIRE_BOTH is true, every enabled sensor must trigger.
   if (REQUIRE_BOTH) {
 
+    // Both enabled sensors must trigger
     alarm =
       (!USE_LDR || ldrTriggered) &&
       (!USE_ACCEL || accelTriggered);
 
   } else {
-    
-    // Else, any enabled sensor can trigger the alarm.
+
+    // Either enabled sensor can trigger
     alarm =
       (USE_LDR && ldrTriggered) ||
       (USE_ACCEL && accelTriggered);
   }
 
-  // BUZZER 
-  // Sound the buzzer if tampering has been detected.
+  // Sound the buzzer if tampering is detected
   if (alarm) {
 
     Serial.println("!!! BAG TAMPER DETECTED !!!");
 
-    // Generate a 2000 Hz tone.
     tone(BUZZER_PIN, 2000);
-
-    // Keep the tone on briefly.   
     delay(250);
 
-    // Stop the buzzer.
     noTone(BUZZER_PIN);
-
-    // Pause before checking the sensors again.
     delay(250);
   }
 
-  // DEBUG 
-  // Output sensor readings to the Serial Monitor for testing and debugging.
+  // Print sensor readings for testing
   Serial.print("LDR=");
   Serial.print(ldr);
 
@@ -340,6 +312,5 @@ void loop() {
   Serial.print(" Z=");
   Serial.println(event.acceleration.z);
 
-  // Small delay to reduce the sensor reading rate.  
   delay(100);
 }
