@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <!-- Set up the webpage and allow it to resize on different screens -->
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bag Tamper Detection</title>
+
+        <!-- Connect the HTML to the CSS file -->
+        <link rel="stylesheet" href="style.css" />
+    </head>
+
+    <body>
+
+        <!-- Display the title and description at the top -->
+        <header>
+            <h1 class="title">Bag Tamper Detection</h1>
+            <p>Monitor the sensors and alarm on your bag.</p>
+        </header>
+
+        <!-- Main container that uses Flexbox to arrange the sections -->
+        <main class="flex-container">
+
+            <!-- Settings for the movement and light sensors -->
+            <div class="flex-item settings">
+
+                <h2>Movement Sensor</h2>
+
+                <!-- Button to turn the movement sensor on or off -->
+                <div class="sensor-row">
+                    <span>Sensor</span>
+                    <button id="movementButton" onclick="toggleMovement()">ON</button>
+                </div>
+
+                <!-- Slider to change the movement sensitivity from 0 to 100 -->
+                <label for="movementSensitivity">Sensitivity</label>
+                <input
+                    type="range"
+                    id="movementSensitivity"
+                    min="0"
+                    max="100"
+                    value="50"
+                    oninput="updateMovementSensitivity(this)"
+                />
+
+                <!-- Show the value selected on the slider -->
+                <p>Level: <output id="movementValue">50</output>%</p>
+
+                <h2>Light Sensor</h2>
+
+                <!-- Button to turn the light sensor on or off -->
+                <div class="sensor-row">
+                    <span>Sensor</span>
+                    <button id="lightButton" onclick="toggleLight()">ON</button>
+                </div>
+
+                <!-- Slider to change the light sensitivity -->
+                <label for="lightSensitivity">Sensitivity</label>
+                <input
+                    type="range"
+                    id="lightSensitivity"
+                    min="0"
+                    max="100"
+                    value="50"
+                    oninput="updateLightSensitivity(this)"
+                />
+
+                <!-- Display the current light sensitivity value -->
+                <p>Level: <output id="lightValue">50</output>%</p>
+
+            </div>
+
+            <!-- Show the bag image in the centre of the webpage -->
+            <div class="flex-item bag-section">
+
+                <div class="bag-image">
+                    <img src="backpack.png" alt="Bag">
+                </div>
+
+                <!-- Display whether the bag is secure or has been triggered -->
+                <div id="bagStatus" class="bag-status">
+                    Bag Secure
+                </div>
+
+            </div>
+
+            <!-- Controls for the alarm -->
+            <div class="flex-item alarm">
+
+                <h2>Alarm</h2>
+
+                <!-- Button to turn the alarm setting on or off -->
+                <div class="alarm-control">
+                    <span>Alarm</span>
+                    <button id="alarmButton" onclick="toggleAlarm()">ON</button>
+                </div>
+
+                <h3>Volume</h3>
+
+                <!-- Slider for selecting the alarm volume -->
+                <input
+                    type="range"
+                    id="volumeSlider"
+                    min="0"
+                    max="100"
+                    value="50"
+                    oninput="updateVolume(this)"
+                />
+
+                <!-- Show the selected volume percentage -->
+                <p>Volume: <output id="volumeValue">50</output>%</p>
+
+                <h3>Triggered when</h3>
+
+                <!-- Checkboxes to choose which sensors can trigger the alarm -->
+                <div class="trigger-list">
+                    <label>
+                        <input type="checkbox" id="movementTrigger" checked>
+                        Movement
+                    </label>
+
+                    <label>
+                        <input type="checkbox" id="lightTrigger" checked>
+                        Light
+                    </label>
+                </div>
+
+                <!-- Show whether the alarm is ready or turned off -->
+                <div id="alarmStatus" class="alarm-status">
+                    Alarm Ready
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- Show the connection status between the webpage and ESP32 -->
+        <footer>
+            <p id="connectionStatus">Connecting to ESP...</p>
+        </footer>
+
+        <!-- Connect the JavaScript file so the buttons and sliders work -->
+        <script src="script.js"></script>
+    </body>
+</html>

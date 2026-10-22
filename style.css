@@ -1,0 +1,190 @@
+/* Set the font and centre the text */
+html {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    text-align: center;
+}
+
+/* Include padding and borders in the element's total size */
+* {
+    box-sizing: border-box;
+}
+
+/* Set the background colour and remove the default margin */
+body {
+    margin: 0;
+    background-color: #eeeeee;
+    color: #111111;
+}
+
+/* Style the top section of the webpage */
+header {
+    background-color: white;
+    padding: 20px;
+}
+
+/* Set the size and spacing of the main title */
+.title {
+    margin: 0;
+    font-size: 32px;
+}
+
+/* Remove the bottom space under the header paragraph */
+header p {
+    margin-bottom: 0;
+}
+
+/* Use Flexbox to arrange the main sections */
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 10px;
+}
+
+/* Give each section a white background and space around its content */
+.flex-item {
+    background-color: white;
+    padding: 20px;
+    margin: 5px;
+    border-radius: 12px;
+    flex: 1;
+    min-width: 250px;
+}
+
+/* Align the sensor settings to the left */
+.settings {
+    text-align: left;
+}
+
+/* Add a line underneath the settings headings */
+.settings h2 {
+    border-bottom: 2px solid black;
+    padding-bottom: 8px;
+}
+
+/* Arrange the sensor names and buttons in a row */
+.sensor-row,
+.alarm-control {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+}
+
+/* Style the buttons */
+button {
+    border: 2px solid black;
+    background-color: white;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Change the button background when the mouse is over it */
+button:hover {
+    background-color: #dddddd;
+}
+
+/* Make the sliders fill the available width */
+input[type="range"] {
+    width: 100%;
+}
+
+/* Centre the bag image and its section content */
+.bag-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Set the size of the area containing the bag image */
+.bag-image {
+    width: 100%;
+    max-width: 360px;
+    height: 430px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Make the image fit inside its container without stretching */
+.bag-image img {
+    width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Style the status message shown underneath the bag */
+.bag-status {
+    border: 2px solid black;
+    border-radius: 8px;
+    padding: 12px 25px;
+    margin-top: 10px;
+    font-weight: bold;
+    background-color: #eeeeee;
+}
+
+/* Align the alarm settings to the left */
+.alarm {
+    text-align: left;
+}
+
+/* Add a line underneath the alarm heading */
+.alarm h2 {
+    border-bottom: 2px solid black;
+    padding-bottom: 8px;
+}
+
+/* Stack the alarm trigger options vertically */
+.trigger-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Show that the trigger options can be clicked */
+.trigger-list label {
+    cursor: pointer;
+}
+
+/* Style the alarm status message */
+.alarm-status {
+    text-align: center;
+    border: 2px solid black;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 25px;
+    font-weight: bold;
+}
+
+/* Add space around the connection message at the bottom */
+footer {
+    text-align: center;
+    padding: 10px;
+}
+
+/* Adjust the layout for smaller screens */
+@media (max-width: 700px) {
+    /* Make each section take up the full width */
+    .flex-item {
+        flex: 100%;
+    }
+
+    /* Move the bag section above the other sections */
+    .bag-section {
+        order: -1;
+    }
+
+    /* Make the bag image area shorter */
+    .bag-image {
+        height: 350px;
+    }
+
+    /* Make the title smaller so it fits on the screen */
+    .title {
+        font-size: 25px;
+    }
+}
