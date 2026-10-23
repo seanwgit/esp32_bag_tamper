@@ -16,7 +16,15 @@
         <header>
             <h1 class="title">Bag Tamper Detection</h1>
             <p>Monitor the sensors and alarm on your bag.</p>
+
+            <!-- Simple link to the second page explaining the system -->
+            <nav>
+                <a href="index.html" aria-current="page">Dashboard</a>
+                <a href="guide.html">User Guide</a>
+            </nav>
         </header>
+
+        <!-- The main page has three sections for settings, bag status and alarm. -->
 
         <!-- Main container that uses Flexbox to arrange the sections -->
         <main class="flex-container">
@@ -34,6 +42,7 @@
 
                 <!-- Slider to change the movement sensitivity from 0 to 100 -->
                 <label for="movementSensitivity">Sensitivity</label>
+
                 <input
                     type="range"
                     id="movementSensitivity"
@@ -41,6 +50,7 @@
                     max="100"
                     value="50"
                     oninput="updateMovementSensitivity(this)"
+                    onchange="saveMovementSensitivity()"
                 />
 
                 <!-- Show the value selected on the slider -->
@@ -56,6 +66,7 @@
 
                 <!-- Slider to change the light sensitivity -->
                 <label for="lightSensitivity">Sensitivity</label>
+
                 <input
                     type="range"
                     id="lightSensitivity"
@@ -63,6 +74,7 @@
                     max="100"
                     value="50"
                     oninput="updateLightSensitivity(this)"
+                    onchange="saveLightSensitivity()"
                 />
 
                 <!-- Display the current light sensitivity value -->
@@ -81,6 +93,16 @@
                 <div id="bagStatus" class="bag-status">
                     Bag Secure
                 </div>
+
+                <!-- Show sensor readings sent from the ESP32 -->
+                <p class="readings">
+                    Light reading: <span id="lightReading">--</span>
+                </p>
+
+                <p class="readings">
+                    Movement reading:
+                    <span id="movementReading">--</span> m/s²
+                </p>
 
             </div>
 
@@ -105,6 +127,7 @@
                     max="100"
                     value="50"
                     oninput="updateVolume(this)"
+                    onchange="saveVolume()"
                 />
 
                 <!-- Show the selected volume percentage -->
@@ -114,6 +137,7 @@
 
                 <!-- Checkboxes to choose which sensors can trigger the alarm -->
                 <div class="trigger-list">
+
                     <label>
                         <input type="checkbox" id="movementTrigger" checked>
                         Movement
@@ -123,6 +147,7 @@
                         <input type="checkbox" id="lightTrigger" checked>
                         Light
                     </label>
+
                 </div>
 
                 <!-- Show whether the alarm is ready or turned off -->
@@ -141,5 +166,6 @@
 
         <!-- Connect the JavaScript file so the buttons and sliders work -->
         <script src="script.js"></script>
+
     </body>
 </html>
