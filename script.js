@@ -48,32 +48,40 @@ function onMessage(event) {
     // Print the received message for testing
     console.log(myObj);
 
-    // Get the test status from the ESP32
-    var status = myObj.values[0].status;
+    // Read the sensor settings sent from the ESP32
+    movementOn = myObj.values[0].movement == "1";
+    lightOn = myObj.values[1].light == "1";
 
-    console.log(status);
+    // Update the movement button using the ESP32 setting
+    if (movementOn) {
+        document.getElementById("movementButton").innerHTML = "ON";
+    } else {
+        document.getElementById("movementButton").innerHTML = "OFF";
+    }
+
+    // Update the light button using the ESP32 setting
+    if (lightOn) {
+        document.getElementById("lightButton").innerHTML = "ON";
+    } else {
+        document.getElementById("lightButton").innerHTML = "OFF";
+    }
+
     console.log(event.data);
-
-    // Later this will be used to update the sensors and alarm
 }
 
 var movementOn = true;
 
 // Change the movement sensor button between ON and OFF
 function toggleMovement() {
-    movementOn = !movementOn;
+    // Only send a message if the ESP32 is connected
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
 
-    var button = document.getElementById("movementButton");
-
-    if (movementOn) {
-        button.innerHTML = "ON";
-    } else {
-        button.innerHTML = "OFF";
+        if (movementOn) {
+            websocket.send("movementOff");
+        } else {
+            websocket.send("movementOn");
+        }
     }
-
-    console.log("Movement sensor:", movementOn);
-
-    // Later this will send the setting to the ESP32
 }
 
 // Show the selected movement sensitivity
@@ -89,17 +97,15 @@ var lightOn = true;
 
 // Change the light sensor button between ON and OFF
 function toggleLight() {
-    lightOn = !lightOn;
+    // Only send a message if the ESP32 is connected
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
 
-    var button = document.getElementById("lightButton");
-
-    if (lightOn) {
-        button.innerHTML = "ON";
-    } else {
-        button.innerHTML = "OFF";
+        if (lightOn) {
+            websocket.send("lightOff");
+        } else {
+            websocket.send("lightOn");
+        }
     }
-
-    console.log("Light sensor:", lightOn);
 }
 
 // Show the selected light sensitivity
