@@ -7,13 +7,29 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+#include <esp_arduino_version.h>
+
+/*
+  These settings control how the bag sensors and alarm work.
+  The webpage can now change them, instead of only changing the button text.
+*/
 
 // Sensor settings
 bool USE_LDR = true;
 bool USE_ACCEL = true;
+bool ALARM_ON = true;
 
 // false = either sensor, true = both sensors
 bool REQUIRE_BOTH = false;
+
+// Choose which sensors are allowed to trigger the alarm
+bool MOVEMENT_TRIGGER = true;
+bool LIGHT_TRIGGER = true;
+
+// Sensitivity values are percentages shown on the webpage
+int movementSensitivity = 50;
+int lightSensitivity = 50;
+int alarmVolume = 50;
 
 // Light and movement thresholds
 int LDR_THRESHOLD = 2800;
@@ -29,12 +45,23 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 // Starting acceleration values used to detect movement
 float armX, armY, armZ;
 
+// Values sent to the webpage so it can show the actual bag status
+bool tamperDetected = false;
+int currentLDR = 0;
+float currentMovement = 0;
+unsigned long lastSensorCheck = 0;
+unsigned long lastWebUpdate = 0;
+unsigned long lastBuzzerChange = 0;
+bool buzzerPlaying = false;
 
-// WebSocket code adapted from the class example
+/*
+  This is the WiFi, LittleFS and WebSocket code adapted from the class example.
+  The ESP32 hosts the webpage and exchanges messages with JavaScript.
+*/
 
 // WiFi network details
-const char SSID[] = "Winwifi";
-const char PASSWORD[] = "giNk0b!lBO4";
+const char SSID[] = "Grandstream - WiFi";
+const char PASSWORD[] = "Rawhiti1978";
 
 // Create the web server on port 80
 AsyncWebServer server(80);
@@ -91,16 +118,29 @@ void writeFile(fs::FS& fs, const char* path, const char* message) {
   file.close();
 }
 
+/*
+  This makes one JSON message containing the current ESP32 settings and readings.
+  It uses the same values array idea as the teacher's example, so the webpage
+  can read each value in the onMessage() function.
+*/
+
 // Make a JSON message containing the current sensor settings
 String getOutputStates() {
   JSONVar myArray;
 
-  // Send whether each sensor is enabled
   myArray["values"][0]["movement"] = USE_ACCEL ? "1" : "0";
   myArray["values"][1]["light"] = USE_LDR ? "1" : "0";
+  myArray["values"][2]["alarm"] = ALARM_ON ? "1" : "0";
+  myArray["values"][3]["movementSensitivity"] = movementSensitivity;
+  myArray["values"][4]["lightSensitivity"] = lightSensitivity;
+  myArray["values"][5]["volume"] = alarmVolume;
+  myArray["values"][6]["movementTrigger"] = MOVEMENT_TRIGGER ? "1" : "0";
+  myArray["values"][7]["lightTrigger"] = LIGHT_TRIGGER ? "1" : "0";
+  myArray["values"][8]["tamper"] = tamperDetected ? "1" : "0";
+  myArray["values"][9]["ldr"] = currentLDR;
+  myArray["values"][10]["movementValue"] = currentMovement;
 
-  String jsonString = JSON.stringify(myArray);
-  return jsonString;
+  return JSON.stringify(myArray);
 }
 
 // Send a message to all connected webpages
@@ -108,11 +148,18 @@ void notifyClients(String state) {
   ws.textAll(state);
 }
 
+/*
+  The webpage sends simple text commands, such as movementOff or volume:50.
+  This function reads each message, changes the right ESP32 variable, and sends
+  the new settings back so the controls stay in sync after a refresh.
+*/
+
 // Read messages sent from the webpage
 void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
   AwsFrameInfo* info = (AwsFrameInfo*)arg;
 
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+  if (info->final && info->index == 0 &&
+      info->len == len && info->opcode == WS_TEXT) {
 
     // Read the message received from the webpage
     String message = "";
@@ -126,36 +173,83 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
     // Send the current sensor settings when requested
     if (message == "getStates") {
       notifyClients(getOutputStates());
+      return;
     }
 
     // Turn the movement sensor on or off
-    else if (message == "movementOn") {
+    if (message == "movementOn") {
       USE_ACCEL = true;
-      Serial.println("Movement sensor ON");
-      notifyClients(getOutputStates());
     }
     else if (message == "movementOff") {
       USE_ACCEL = false;
-      Serial.println("Movement sensor OFF");
-      notifyClients(getOutputStates());
     }
 
     // Turn the light sensor on or off
     else if (message == "lightOn") {
       USE_LDR = true;
-      Serial.println("Light sensor ON");
-      notifyClients(getOutputStates());
     }
     else if (message == "lightOff") {
       USE_LDR = false;
-      Serial.println("Light sensor OFF");
-      notifyClients(getOutputStates());
     }
+
+    // Turn the alarm on or off
+    else if (message == "alarmOn") {
+      ALARM_ON = true;
+    }
+    else if (message == "alarmOff") {
+      ALARM_ON = false;
+    }
+
+    // Choose which sensors can trigger the alarm
+    else if (message == "movementTriggerOn") {
+      MOVEMENT_TRIGGER = true;
+    }
+    else if (message == "movementTriggerOff") {
+      MOVEMENT_TRIGGER = false;
+    }
+    else if (message == "lightTriggerOn") {
+      LIGHT_TRIGGER = true;
+    }
+    else if (message == "lightTriggerOff") {
+      LIGHT_TRIGGER = false;
+    }
+
+    // Read sensitivity and volume numbers from the sliders
+    else if (message.startsWith("movementSensitivity:")) {
+      movementSensitivity =
+        constrain(message.substring(20).toInt(), 0, 100);
+    }
+    else if (message.startsWith("lightSensitivity:")) {
+      lightSensitivity =
+        constrain(message.substring(17).toInt(), 0, 100);
+    }
+    else if (message.startsWith("volume:")) {
+      alarmVolume =
+        constrain(message.substring(7).toInt(), 0, 100);
+    }
+    else {
+      return;
+    }
+
+    // Higher sensitivity means a smaller change can trigger detection
+    MOVEMENT_THRESHOLD =
+      16.0 - (14.0 * movementSensitivity / 100.0);
+
+    LDR_THRESHOLD =
+      map(lightSensitivity, 0, 100, 4000, 1600);
+
+    notifyClients(getOutputStates());
   }
 }
 
 // Handles WebSocket connections, disconnections and messages
-void onEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
+void onEvent(AsyncWebSocket* server,
+             AsyncWebSocketClient* client,
+             AwsEventType type,
+             void* arg,
+             uint8_t* data,
+             size_t len) {
+
   switch (type) {
     case WS_EVT_CONNECT:
       Serial.print("WebSocket client ");
@@ -188,6 +282,40 @@ void initWebSocket() {
   Serial.println("WebSocket should be running now");
 }
 
+/*
+  The buzzer uses PWM to try to change its loudness. This works for my
+  passive piezo buzzer; an active buzzer may only sound on or off. The code
+  supports both older and newer ESP32 Arduino board packages.
+*/
+
+void setupBuzzer() {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(BUZZER_PIN, 2000, 8);
+  ledcWrite(BUZZER_PIN, 0);
+#else
+  ledcSetup(0, 2000, 8);
+  ledcAttachPin(BUZZER_PIN, 0);
+  ledcWrite(0, 0);
+#endif
+}
+
+void setBuzzer(bool playSound) {
+  // Higher slider values use a larger PWM duty cycle
+  int duty = playSound ?
+    map(alarmVolume, 0, 100, 0, 128) : 0;
+
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(BUZZER_PIN, duty);
+#else
+  ledcWrite(0, duty);
+#endif
+}
+
+/*
+  Setup connects the ESP32 to WiFi, loads the webpage files, and starts the
+  WebSocket server. It then checks the accelerometer and remembers the bag's
+  starting position so it can detect movement later.
+*/
 
 void setup() {
   // Start the Serial Monitor
@@ -216,7 +344,8 @@ void setup() {
   initWebSocket();
 
   // Load the webpage files stored on the ESP32
-  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+  server.serveStatic("/", LittleFS, "/")
+        .setDefaultFile("index.html");
 
   // Start the web server
   server.begin();
@@ -226,6 +355,8 @@ void setup() {
   // Set up the LDR and buzzer
   pinMode(LDR_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
+
+  setupBuzzer();
 
   // Start communication with the accelerometer
   Wire.begin();
@@ -250,92 +381,125 @@ void setup() {
   Serial.println("SYSTEM ARMED");
 }
 
+/*
+  Loop checks the light and movement sensors and decides whether the bag has
+  been disturbed. It also updates the buzzer and sends readings to the webpage.
+  millis() is used instead of long delays so the webpage stays responsive.
+*/
 
 void loop() {
-
   // Remove disconnected WebSocket clients
   ws.cleanupClients();
 
-  // Track whether each sensor has detected tampering
-  bool ldrTriggered = false;
-  bool accelTriggered = false;
+  unsigned long now = millis();
 
-  // Read the light sensor
-  int ldr = analogRead(LDR_PIN);
+  // Read the sensors about every 100 milliseconds
+  if (now - lastSensorCheck >= 100) {
+    lastSensorCheck = now;
 
-  // Check whether the light level has passed the threshold
-  if (USE_LDR && ldr > LDR_THRESHOLD) {
-    ldrTriggered = true;
+    // Track whether each sensor has detected tampering
+    bool ldrTriggered = false;
+    bool accelTriggered = false;
 
-    Serial.print("LDR TRIGGERED: ");
-    Serial.println(ldr);
+    // Read the light sensor
+    int ldr = analogRead(LDR_PIN);
+    currentLDR = ldr;
+
+    // Check whether the light level has passed the threshold
+    if (USE_LDR && ldr > LDR_THRESHOLD) {
+      ldrTriggered = true;
+
+      Serial.print("LDR TRIGGERED: ");
+      Serial.println(ldr);
+    }
+
+    // Read the accelerometer
+    sensors_event_t event;
+    accel.getEvent(&event);
+
+    // Calculate the change from the starting position
+    float dx = abs(event.acceleration.x - armX);
+    float dy = abs(event.acceleration.y - armY);
+    float dz = abs(event.acceleration.z - armZ);
+
+    // Use the largest change to measure movement
+    float movement = max(dx, max(dy, dz));
+    currentMovement = movement;
+
+    // Check whether enough movement has happened
+    if (USE_ACCEL && movement > MOVEMENT_THRESHOLD) {
+      accelTriggered = true;
+
+      Serial.print("MOVEMENT TRIGGERED: ");
+      Serial.println(movement);
+    }
+
+    /*
+      The trigger checkboxes choose which detected changes count as tampering.
+      Sensor ON/OFF buttons are separate, so a disabled sensor cannot trigger.
+    */
+
+    // Decide whether the alarm should go off
+    bool useMovement = USE_ACCEL && MOVEMENT_TRIGGER;
+    bool useLight = USE_LDR && LIGHT_TRIGGER;
+
+    if (REQUIRE_BOTH) {
+      // Both selected and enabled sensors must trigger
+      tamperDetected =
+        (useMovement || useLight) &&
+        (!useMovement || accelTriggered) &&
+        (!useLight || ldrTriggered);
+    } else {
+      // Either selected and enabled sensor can trigger
+      tamperDetected =
+        (useMovement && accelTriggered) ||
+        (useLight && ldrTriggered);
+    }
   }
 
-  // Read the accelerometer
-  sensors_event_t event;
-  accel.getEvent(&event);
-
-  // Calculate the change from the starting position
-  float dx = abs(event.acceleration.x - armX);
-  float dy = abs(event.acceleration.y - armY);
-  float dz = abs(event.acceleration.z - armZ);
-
-  // Use the largest change to measure movement
-  float movement = max(dx, max(dy, dz));
-
-  // Check whether enough movement has happened
-  if (USE_ACCEL && movement > MOVEMENT_THRESHOLD) {
-    accelTriggered = true;
-
-    Serial.print("MOVEMENT TRIGGERED: ");
-    Serial.println(movement);
-  }
-
-  // Decide whether the alarm should go off
-  bool alarm = false;
-
-  if (REQUIRE_BOTH) {
-
-    // Both enabled sensors must trigger
-    alarm =
-      (!USE_LDR || ldrTriggered) &&
-      (!USE_ACCEL || accelTriggered);
-
-  } else {
-
-    // Either enabled sensor can trigger
-    alarm =
-      (USE_LDR && ldrTriggered) ||
-      (USE_ACCEL && accelTriggered);
-  }
+  /*
+    The alarm plays a short beep, then pauses before the next beep.
+    If the alarm is off or the bag is secure, the buzzer stops immediately.
+  */
 
   // Sound the buzzer if tampering is detected
-  if (alarm) {
+  bool shouldSound =
+    tamperDetected && ALARM_ON && alarmVolume > 0;
 
-    Serial.println("!!! BAG TAMPER DETECTED !!!");
+  if (!shouldSound) {
+    buzzerPlaying = false;
+    setBuzzer(false);
+    lastBuzzerChange = now;
+  }
+  else if (now - lastBuzzerChange >= 250) {
+    buzzerPlaying = !buzzerPlaying;
+    setBuzzer(buzzerPlaying);
+    lastBuzzerChange = now;
 
-    tone(BUZZER_PIN, 2000);
-    delay(250);
-
-    noTone(BUZZER_PIN);
-    delay(250);
+    if (buzzerPlaying) {
+      Serial.println("!!! BAG TAMPER DETECTED !!!");
+    }
   }
 
-  // Print sensor readings for testing
-  Serial.print("LDR=");
-  Serial.print(ldr);
+  /*
+    The ESP32 regularly sends sensor readings and the tamper result to the
+    webpage. This is how Bag Secure changes to Tampering Detected without
+    needing to refresh the browser.
+  */
 
-  Serial.print(" | Move=");
-  Serial.print(movement);
+  // Send live states to the webpage twice per second
+  if (now - lastWebUpdate >= 500) {
+    lastWebUpdate = now;
 
-  Serial.print(" | X=");
-  Serial.print(event.acceleration.x);
+    if (ws.count() > 0) {
+      notifyClients(getOutputStates());
+    }
 
-  Serial.print(" Y=");
-  Serial.print(event.acceleration.y);
+    // Print sensor readings for testing
+    Serial.print("LDR=");
+    Serial.print(currentLDR);
 
-  Serial.print(" Z=");
-  Serial.println(event.acceleration.z);
-
-  delay(100);
+    Serial.print(" | Move=");
+    Serial.println(currentMovement);
+  }
 }
