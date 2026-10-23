@@ -91,12 +91,13 @@ void writeFile(fs::FS& fs, const char* path, const char* message) {
   file.close();
 }
 
-// Make a JSON message to test communication with the webpage
+// Make a JSON message containing the current sensor settings
 String getOutputStates() {
   JSONVar myArray;
 
-  // This is just a test value for now
-  myArray["values"][0]["status"] = "connected";
+  // Send whether each sensor is enabled
+  myArray["values"][0]["movement"] = USE_ACCEL ? "1" : "0";
+  myArray["values"][1]["light"] = USE_LDR ? "1" : "0";
 
   String jsonString = JSON.stringify(myArray);
   return jsonString;
@@ -122,8 +123,32 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len) {
 
     Serial.println(message);
 
-    // If the webpage requests the states, send a test message
+    // Send the current sensor settings when requested
     if (message == "getStates") {
+      notifyClients(getOutputStates());
+    }
+
+    // Turn the movement sensor on or off
+    else if (message == "movementOn") {
+      USE_ACCEL = true;
+      Serial.println("Movement sensor ON");
+      notifyClients(getOutputStates());
+    }
+    else if (message == "movementOff") {
+      USE_ACCEL = false;
+      Serial.println("Movement sensor OFF");
+      notifyClients(getOutputStates());
+    }
+
+    // Turn the light sensor on or off
+    else if (message == "lightOn") {
+      USE_LDR = true;
+      Serial.println("Light sensor ON");
+      notifyClients(getOutputStates());
+    }
+    else if (message == "lightOff") {
+      USE_LDR = false;
+      Serial.println("Light sensor OFF");
       notifyClients(getOutputStates());
     }
   }
