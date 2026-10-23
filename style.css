@@ -33,6 +33,27 @@ header p {
     margin-bottom: 0;
 }
 
+/* Style the links between the dashboard and user guide */
+nav {
+    margin-top: 15px;
+}
+
+nav a {
+    margin: 0 12px;
+    color: #222222;
+    text-decoration: none;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* Show which webpage the user is currently viewing */
+nav a[aria-current="page"] {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
 /* Use Flexbox to arrange the main sections */
 .flex-container {
     display: flex;
@@ -127,6 +148,19 @@ input[type="range"] {
     background-color: #eeeeee;
 }
 
+/* Turn the bag status red when tampering is detected */
+.bag-status.warning {
+    background-color: #ffcccc;
+    border-color: #cc3333;
+    color: #990000;
+}
+
+/* Show the light and movement readings under the bag */
+.readings {
+    font-size: 13px;
+    margin: 10px 0 0;
+}
+
 /* Align the alarm settings to the left */
 .alarm {
     text-align: left;
@@ -164,6 +198,32 @@ input[type="range"] {
 footer {
     text-align: center;
     padding: 10px;
+}
+
+/* Keep the user guide centred and easy to read */
+.guide-content {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 10px;
+}
+
+/* Give each guide section a white background */
+.guide-content section {
+    background: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    text-align: left;
+}
+
+/* Make the instructions easier to read */
+.guide-content p {
+    line-height: 1.6;
+}
+
+/* Add space around the link back to the dashboard */
+.back-link {
+    margin: 20px 0;
 }
 
 /* Adjust the layout for smaller screens */
