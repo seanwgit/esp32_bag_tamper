@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <!-- Set up a second page using the same simple style as the dashboard -->
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>User Guide - Bag Tamper Detection</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+
+    <body>
+
+        <!-- This navigation allows the user to move between both webpages. -->
+        <header>
+            <h1 class="title">Bag Tamper Detection</h1>
+            <p>User Guide</p>
+
+            <nav>
+                <a href="index.html">Dashboard</a>
+                <a href="guide.html" aria-current="page">User Guide</a>
+            </nav>
+        </header>
+
+        <!-- This page explains the controls in short sections for new users. -->
+        <main class="guide-content">
+
+            <section>
+                <h2>How the system works</h2>
+                <p>
+                    The bag uses an ADXL345 movement sensor and a light
+                    sensor (LDR) connected to an ESP32. If an enabled
+                    and selected sensor detects a large enough change,
+                    the bag status changes to Tampering Detected.
+                    The alarm can also sound if it is switched on.
+                </p>
+            </section>
+
+            <section>
+                <h2>1. Connect to the dashboard</h2>
+                <p>
+                    Turn on the ESP32 and connect your device to the
+                    same Wi-Fi network. Open the ESP32's IP address
+                    in your web browser. The bottom of the dashboard
+                    should show ESP connected.
+                </p>
+            </section>
+
+            <section>
+                <h2>2. Choose the sensors</h2>
+                <p>
+                    Use the Movement Sensor and Light Sensor ON/OFF
+                    buttons to enable or disable each sensor.
+                    Move a sensitivity slider higher to detect
+                    smaller changes. Start around 50% and adjust
+                    it after testing the bag.
+                </p>
+            </section>
+
+            <section>
+                <h2>3. Set up the alarm</h2>
+                <p>
+                    Turn the alarm ON to allow the buzzer to sound.
+                    Use the trigger checkboxes to decide whether
+                    movement, light, or either one can set off the system.
+                    The volume slider controls the buzzer signal;
+                    the actual change in loudness depends on which
+                    buzzer is connected.
+                </p>
+            </section>
+
+            <section>
+                <h2>4. Check the bag status</h2>
+                <p>
+                    Bag Secure means the currently selected sensors
+                    have not detected tampering. Tampering Detected
+                    means a selected sensor has passed its threshold.
+                    The light and movement readings help you test
+                    the sensors and choose a suitable sensitivity.
+                </p>
+            </section>
+
+            <section>
+                <h2>Troubleshooting</h2>
+                <p>
+                    If the dashboard shows ESP disconnected, check
+                    the ESP32 power and Wi-Fi connection, then refresh
+                    the page. If the buzzer does not sound, check that
+                    Alarm is ON, volume is above 0%, and at least
+                    one enabled sensor is selected as a trigger.
+                    If the light sensor seems reversed, the LDR wiring
+                    or light threshold may need adjusting.
+                </p>
+            </section>
+
+            <p class="back-link">
+                <a href="index.html">Back to Dashboard</a>
+            </p>
+
+        </main>
+
+        <footer>
+            <p>Bag Tamper Detection - User Guide</p>
+        </footer>
+
+    </body>
+</html>
