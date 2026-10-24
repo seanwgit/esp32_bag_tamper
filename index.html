@@ -97,6 +97,7 @@
                 <!-- Show sensor readings sent from the ESP32 -->
                 <p class="readings">
                     Light reading: <span id="lightReading">--</span>
+                    
                 </p>
 
                 <p class="readings">
@@ -104,6 +105,11 @@
                     <span id="movementReading">--</span> m/s²
                 </p>
 
+                <!-- Show the most recent times when tampering was detected -->
+                <div class="history-section">
+                    <h3>Tampering History</h3>
+                    <ul id="tamperHistory"></ul>
+                </div>
             </div>
 
             <!-- Controls for the alarm -->
@@ -169,3 +175,4 @@
 
     </body>
 </html>
+
