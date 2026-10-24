@@ -226,6 +226,34 @@ footer {
     margin: 20px 0;
 }
 
+/* Style the history section underneath the bag */
+.history-section {
+    width: 100%;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #cccccc;
+}
+
+/* Style the heading above the recorded events */
+.history-section h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+/* Keep the history list simple and easy to read */
+.history-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Add spacing between each recorded event */
+.history-section li {
+    padding: 7px;
+    border-bottom: 1px solid #dddddd;
+    font-size: 13px;
+}
+
 /* Adjust the layout for smaller screens */
 @media (max-width: 700px) {
     /* Make each section take up the full width */
