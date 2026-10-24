@@ -9,6 +9,10 @@
 #include <Adafruit_ADXL345_U.h>
 #include <esp_arduino_version.h>
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+#include <SPI.h>
+
 /*
   These settings control how the bag sensors and alarm work.
   The webpage can now change them, instead of only changing the button text.
@@ -39,6 +43,9 @@ float MOVEMENT_THRESHOLD = 9;
 #define LDR_PIN A0
 #define BUZZER_PIN 13
 
+// Set up the small screen on the ESP32
+Adafruit_ST7789 tftScreen = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+
 // Set up the accelerometer
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
@@ -60,8 +67,8 @@ bool buzzerPlaying = false;
 */
 
 // WiFi network details
-const char SSID[] = "Grandstream - WiFi";
-const char PASSWORD[] = "Rawhiti1978";
+const char SSID[] = "Winwifi";
+const char PASSWORD[] = "giNk0b!lBO4";
 
 // Create the web server on port 80
 AsyncWebServer server(80);
@@ -314,7 +321,8 @@ void setBuzzer(bool playSound) {
 /*
   Setup connects the ESP32 to WiFi, loads the webpage files, and starts the
   WebSocket server. It then checks the accelerometer and remembers the bag's
-  starting position so it can detect movement later.
+  starting position so it can detect movement later. I also added a screen 
+  that prints the ip adress based on the teacher example.
 */
 
 void setup() {
@@ -338,6 +346,35 @@ void setup() {
   // Print the IP address used to open the webpage
   Serial.print("ESP32 IP Address: ");
   Serial.println(WiFi.localIP());
+
+  // Turn on the small TFT screen
+  pinMode(TFT_BACKLITE, OUTPUT);
+  pinMode(TFT_I2C_POWER, OUTPUT);
+
+  digitalWrite(TFT_BACKLITE, HIGH);
+  digitalWrite(TFT_I2C_POWER, HIGH);
+
+  // Set up the screen using the class example
+  tftScreen.init(135, 240);
+  tftScreen.setRotation(3);
+  tftScreen.fillScreen(ST77XX_WHITE);
+
+  // Set the text colour and size
+  tftScreen.setTextColor(ST77XX_BLACK);
+  tftScreen.setTextSize(2);
+  tftScreen.setTextWrap(true);
+
+  // Show the IP address needed to open the webpage
+  tftScreen.setCursor(10, 20);
+  tftScreen.println("Bag Detection");
+
+  tftScreen.setCursor(10, 60);
+  tftScreen.println("IP Address:");
+
+  tftScreen.setCursor(10, 90);
+  tftScreen.println(WiFi.localIP());
+
+  Serial.println("Screen should now show the IP address");
 
   // Start LittleFS and WebSocket
   initLittleFS();
