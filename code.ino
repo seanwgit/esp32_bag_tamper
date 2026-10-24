@@ -72,7 +72,7 @@ bool buzzerPlaying = false;
 */
 
 // WiFi network details
-const char SSID[] = "Winwifi";
+const char SSID[] = "YOUR_WIFI";
 const char PASSWORD[] = "YOUR_WIFI_PASSWORD";
 
 // Create the web server on port 80
