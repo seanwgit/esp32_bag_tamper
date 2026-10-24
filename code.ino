@@ -54,6 +54,11 @@ float armX, armY, armZ;
 
 // Values sent to the webpage so it can show the actual bag status
 bool tamperDetected = false;
+
+// Remember which sensors are currently triggered
+bool ldrTriggered = false;
+bool accelTriggered = false;
+
 int currentLDR = 0;
 float currentMovement = 0;
 unsigned long lastSensorCheck = 0;
@@ -68,7 +73,7 @@ bool buzzerPlaying = false;
 
 // WiFi network details
 const char SSID[] = "Winwifi";
-const char PASSWORD[] = "giNk0b!lBO4";
+const char PASSWORD[] = "YOUR_WIFI_PASSWORD";
 
 // Create the web server on port 80
 AsyncWebServer server(80);
@@ -435,8 +440,9 @@ void loop() {
     lastSensorCheck = now;
 
     // Track whether each sensor has detected tampering
-    bool ldrTriggered = false;
-    bool accelTriggered = false;
+    // Reset the sensor results before checking them again
+    ldrTriggered = false;
+    accelTriggered = false;
 
     // Read the light sensor
     int ldr = analogRead(LDR_PIN);
@@ -472,25 +478,17 @@ void loop() {
     }
 
     /*
-      The trigger checkboxes choose which detected changes count as tampering.
-      Sensor ON/OFF buttons are separate, so a disabled sensor cannot trigger.
+      The sensor buttons control whether tampering can be detected.
+      The alarm checkboxes are separate and only control the buzzer.
     */
 
-    // Decide whether the alarm should go off
-    bool useMovement = USE_ACCEL && MOVEMENT_TRIGGER;
-    bool useLight = USE_LDR && LIGHT_TRIGGER;
-
+    // Decide whether the bag has been tampered with
     if (REQUIRE_BOTH) {
-      // Both selected and enabled sensors must trigger
       tamperDetected =
-        (useMovement || useLight) &&
-        (!useMovement || accelTriggered) &&
-        (!useLight || ldrTriggered);
+        USE_ACCEL && USE_LDR &&
+        accelTriggered && ldrTriggered;
     } else {
-      // Either selected and enabled sensor can trigger
-      tamperDetected =
-        (useMovement && accelTriggered) ||
-        (useLight && ldrTriggered);
+      tamperDetected = accelTriggered || ldrTriggered;
     }
   }
 
@@ -499,9 +497,14 @@ void loop() {
     If the alarm is off or the bag is secure, the buzzer stops immediately.
   */
 
-  // Sound the buzzer if tampering is detected
+  // Check whether a selected sensor should activate the buzzer
+  bool alarmTriggered =
+    (MOVEMENT_TRIGGER && accelTriggered) ||
+    (LIGHT_TRIGGER && ldrTriggered);
+
+  // Sound the buzzer only when the alarm is enabled
   bool shouldSound =
-    tamperDetected && ALARM_ON && alarmVolume > 0;
+    alarmTriggered && ALARM_ON && alarmVolume > 0;
 
   if (!shouldSound) {
     buzzerPlaying = false;
