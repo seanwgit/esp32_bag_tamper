@@ -12,6 +12,9 @@ var websocket;
 var movingMovementSlider = false;
 var movingLightSlider = false;
 var movingVolumeSlider = false;
+// Keep track of when the bag changes from secure to tampered
+var lastTamperState = false;
+var firstReading = true;
 
 // Wait for the webpage to load before connecting
 window.addEventListener("load", onload);
@@ -118,6 +121,18 @@ function onMessage(event) {
 
     // Change the bag status when either selected sensor detects tampering
     var bagStatus = document.getElementById("bagStatus");
+
+    // Check if the bag has just changed from secure to tampered
+    var currentTamperState = values[8].tamper == "1";
+
+    // Only add a history event when tampering first starts
+    if (!firstReading && currentTamperState && !lastTamperState) {
+        addTamperHistory();
+    }
+
+    // Save the current state to compare with the next reading
+    lastTamperState = currentTamperState;
+    firstReading = false;
 
     if (values[8].tamper == "1") {
         bagStatus.innerHTML = "Tampering Detected";
@@ -278,3 +293,30 @@ function getStates() {
     }
 }
 
+/*
+  This function records the date and time when tampering is detected.
+  It adds each new event to a small history list so the user can see
+  when their bag was last disturbed.
+*/
+
+// Add a new tampering event to the history
+function addTamperHistory() {
+    var now = new Date();
+
+    // Get the current date and time from the browser
+    var date = now.toLocaleDateString();
+    var time = now.toLocaleTimeString();
+
+    // Create a new item for the history list
+    var newEvent = document.createElement("li");
+    newEvent.innerHTML = date + " at " + time;
+
+    // Add the newest event to the top of the list
+    var history = document.getElementById("tamperHistory");
+    history.prepend(newEvent);
+
+    // Only keep the five most recent events
+    if (history.children.length > 5) {
+        history.removeChild(history.lastElementChild);
+    }
+}
